@@ -115,7 +115,7 @@ const SpacePage = () => {
         contentText = await file.text();
       }
 
-      const { error: dbError } = await supabase.from("documents").insert({
+      const { data: docData, error: dbError } = await supabase.from("documents").insert({
         space_id: spaceId!,
         name: file.name,
         file_type: ext || "unknown",
@@ -123,12 +123,26 @@ const SpacePage = () => {
         file_size: file.size,
         content_text: contentText,
         uploaded_by: user.id,
-      });
+      }).select("id").single();
 
       if (dbError) {
         toast.error(`Ошибка сохранения ${file.name}`);
       } else {
         toast.success(`${file.name} загружен`);
+        // Parse PDF/DOCX in background
+        if (ext === "pdf" || ext === "docx") {
+          toast.info(`Извлечение текста из ${file.name}...`);
+          supabase.functions.invoke("parse-document", {
+            body: { documentId: docData.id, filePath, fileType: ext },
+          }).then(({ error }) => {
+            if (error) {
+              toast.error(`Не удалось извлечь текст из ${file.name}`);
+            } else {
+              toast.success(`Текст из ${file.name} извлечён для AI-поиска`);
+              fetchDocuments();
+            }
+          });
+        }
       }
     }
 
