@@ -45,20 +45,23 @@ const Dashboard = () => {
     if (!user || !newSpaceName.trim()) return;
     setCreating(true);
 
-    const { data: space, error } = await supabase
+    const spaceId = crypto.randomUUID();
+    const { error } = await supabase
       .from("spaces")
-      .insert({ name: newSpaceName.trim(), description: newSpaceDesc.trim() || null, owner_id: user.id })
-      .select()
-      .single();
+      .insert({ id: spaceId, name: newSpaceName.trim(), description: newSpaceDesc.trim() || null, owner_id: user.id });
 
     if (error) {
-      toast.error("Ошибка создания спейса");
+      console.error("Space creation error:", error);
+      toast.error(`Ошибка создания спейса: ${error.message}`);
       setCreating(false);
       return;
     }
 
     // Add owner as member
-    await supabase.from("space_members").insert({ space_id: space.id, user_id: user.id, role: "owner" });
+    const { error: memberError } = await supabase.from("space_members").insert({ space_id: spaceId, user_id: user.id, role: "owner" });
+    if (memberError) {
+      console.error("Member insert error:", memberError);
+    }
 
     toast.success("Спейс создан!");
     setNewSpaceName("");
