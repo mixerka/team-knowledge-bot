@@ -59,7 +59,7 @@ serve(async (req) => {
       });
     }
 
-    // Update document with extracted text
+    // Update document with extracted text (using service role, bypasses RLS)
     const { error: updateError } = await supabase
       .from("documents")
       .update({ content_text: contentText })
@@ -86,11 +86,28 @@ serve(async (req) => {
 });
 
 async function parsePdf(blob: Blob): Promise<string> {
-  // Use pdf-parse via esm.sh
-  const { default: pdfParse } = await import("https://esm.sh/pdf-parse@1.1.1");
-  const buffer = await blob.arrayBuffer();
-  const data = await pdfParse(new Uint8Array(buffer));
-  return data.text || "";
+  // Use pdf.js which works in Deno (no fs dependency)
+  const pdfjsLib = await import("https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs");
+  
+  const arrayBuffer = await blob.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+  
+  const doc = await pdfjsLib.getDocument({ data: uint8Array, useSystemFonts: true }).promise;
+  const textParts: string[] = [];
+  
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .filter((item: any) => item.str !== undefined)
+      .map((item: any) => item.str)
+      .join(" ");
+    if (pageText.trim()) {
+      textParts.push(pageText.trim());
+    }
+  }
+  
+  return textParts.join("\n\n");
 }
 
 async function parseDocx(blob: Blob): Promise<string> {
@@ -109,17 +126,16 @@ async function parseDocx(blob: Blob): Promise<string> {
   const xmlContent = await docEntry.getData!(new TextWriter());
   await zipReader.close();
 
-  // Strip XML tags and normalize whitespace
   const text = xmlContent
-    .replace(/<\/w:p[^>]*>/g, "\n") // paragraph breaks
-    .replace(/<\/w:tr[^>]*>/g, "\n") // table row breaks
-    .replace(/<[^>]+>/g, "") // strip all tags
+    .replace(/<\/w:p[^>]*>/g, "\n")
+    .replace(/<\/w:tr[^>]*>/g, "\n")
+    .replace(/<[^>]+>/g, "")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
-    .replace(/\n{3,}/g, "\n\n") // normalize newlines
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
   return text;
