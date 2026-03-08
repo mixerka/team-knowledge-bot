@@ -22,6 +22,7 @@ export type Database = {
           document_id: string
           embedding: string | null
           id: string
+          search_vector: unknown
           space_id: string
         }
         Insert: {
@@ -31,6 +32,7 @@ export type Database = {
           document_id: string
           embedding?: string | null
           id?: string
+          search_vector?: unknown
           space_id: string
         }
         Update: {
@@ -40,6 +42,7 @@ export type Database = {
           document_id?: string
           embedding?: string | null
           id?: string
+          search_vector?: unknown
           space_id?: string
         }
         Relationships: [
@@ -220,6 +223,20 @@ export type Database = {
           document_id: string
           id: string
           similarity: number
+        }[]
+      }
+      search_document_chunks: {
+        Args: {
+          max_results?: number
+          query_text: string
+          search_space_id: string
+        }
+        Returns: {
+          chunk_index: number
+          content: string
+          document_id: string
+          id: string
+          rank: number
         }[]
       }
     }
