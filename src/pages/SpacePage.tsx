@@ -129,7 +129,21 @@ const SpacePage = () => {
         toast.error(`Ошибка сохранения ${file.name}`);
       } else {
         toast.success(`${file.name} загружен`);
-        // Parse PDF/DOCX in background
+
+        const triggerEmbedding = (docId: string) => {
+          toast.info(`Индексация ${file.name} для AI-поиска...`);
+          supabase.functions.invoke("embed-document", {
+            body: { documentId: docId },
+          }).then(({ data, error }) => {
+            if (error) {
+              console.error("Embed error:", error);
+            } else {
+              toast.success(`${file.name} проиндексирован (${data?.chunks || 0} фрагментов)`);
+              fetchDocuments();
+            }
+          });
+        };
+
         if (ext === "pdf" || ext === "docx") {
           toast.info(`Извлечение текста из ${file.name}...`);
           supabase.functions.invoke("parse-document", {
@@ -138,10 +152,13 @@ const SpacePage = () => {
             if (error) {
               toast.error(`Не удалось извлечь текст из ${file.name}`);
             } else {
-              toast.success(`Текст из ${file.name} извлечён для AI-поиска`);
-              fetchDocuments();
+              toast.success(`Текст из ${file.name} извлечён`);
+              triggerEmbedding(docData.id);
             }
           });
+        } else {
+          // txt/md — content already saved, just chunk it
+          triggerEmbedding(docData.id);
         }
       }
     }

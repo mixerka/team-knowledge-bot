@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.parse-document]
 verify_jwt = false
+
+[functions.embed-document]
+verify_jwt = false
