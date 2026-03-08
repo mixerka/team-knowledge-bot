@@ -52,7 +52,8 @@ const Dashboard = () => {
       .single();
 
     if (error) {
-      toast.error("Ошибка создания спейса");
+      console.error("Space creation error:", error);
+      toast.error(`Ошибка создания спейса: ${error.message}`);
       setCreating(false);
       return;
     }
