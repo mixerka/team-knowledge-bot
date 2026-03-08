@@ -86,13 +86,13 @@ serve(async (req) => {
 });
 
 async function parsePdf(blob: Blob): Promise<string> {
-  // Use pdf.js which works in Deno (no fs dependency)
-  const pdfjsLib = await import("https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs");
+  // Use pdfjs-serverless which works in edge/Deno without workers
+  const { getDocument } = await import("https://esm.sh/pdfjs-serverless@0.6.0");
   
   const arrayBuffer = await blob.arrayBuffer();
-  const uint8Array = new Uint8Array(arrayBuffer);
+  const data = new Uint8Array(arrayBuffer);
   
-  const doc = await pdfjsLib.getDocument({ data: uint8Array, useSystemFonts: true }).promise;
+  const doc = await getDocument(data);
   const textParts: string[] = [];
   
   for (let i = 1; i <= doc.numPages; i++) {
